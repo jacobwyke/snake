@@ -57,6 +57,7 @@ class Snake:
         self.is_running = True
         self.in_game = True
 
+        # The game speed based on the clock speed
         self.game_speed = 15
 
         # Run the game
@@ -97,12 +98,15 @@ class Snake:
         self.screen.fill(self.bg_color)
 
     def key_press(self, keypress):
-        # If keypress is valid (up/down/left/right) - change the velocity
         if keypress in self.KEY_PRESSES:
+            # If keypress is valid (up/down/left/right) - change the velocity
             self.change_velocity(self.KEY_PRESSES[keypress])
         elif keypress in self.GAME_SPEED:
-            # set the game speed if 1-9 is pressed
+            # Set the game speed if 1-9 is pressed
             self.game_speed = self.GAME_SPEED[keypress]
+        elif keypress == pygame.K_SPACE:
+            # Pause/resume the game
+            self.in_game = not self.in_game
 
     def generate_food_position(self):
         # Set the food to be within the snake so we run the while loop at least once
