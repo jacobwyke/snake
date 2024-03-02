@@ -1,5 +1,6 @@
 import pygame
 import random
+import math
 
 
 class Snake:
@@ -11,6 +12,7 @@ class Snake:
     grid_size = 30
 
     bg_color = pygame.Color("black")
+    snake_head_color = pygame.Color("blue")
     snake_color = pygame.Color("white")
     food_color = pygame.Color("green")
 
@@ -60,6 +62,7 @@ class Snake:
         # The different states of the app
         self.is_running = True
         self.in_game = True
+        self.ai = False
 
         # The game speed based on the clock speed
         self.game_speed = 15
@@ -83,6 +86,10 @@ class Snake:
             # Only update if we are in game mode
             if self.in_game:
                 self.update()
+
+                # If in AI mode, work out any moves needed
+                if self.ai:
+                    self.calculate_ai_move()
 
             # Handle key presses and quiting the game
             for event in pygame.event.get():
@@ -111,6 +118,9 @@ class Snake:
         elif keypress == pygame.K_SPACE:
             # Pause/resume the game
             self.in_game = not self.in_game
+        elif keypress == pygame.K_c:
+            # toggle ai cheat mode
+            self.ai = not self.ai
 
     def generate_food_position(self):
         # Set the food to be within the snake so we run the loop at least once
@@ -168,12 +178,34 @@ class Snake:
 
     def draw_snake(self):
         # Loop through each block in the snake body and draw it
+        color = self.snake_head_color
         for block in self.body:
-            self.draw_block(block, self.snake_color)
+            self.draw_block(block, color)
+            color = self.snake_color
 
     def draw_food(self):
         # Draw the food as a single block
         self.draw_block(self.food, self.food_color)
+
+    @property
+    def head(self):
+        return self.body[0]
+
+    def future_head(self, velocity):
+        # Get the next position of the head of the snake given the velocity
+        # If you move off the edge of the screen you will wrap back around to the other side
+        x = self.head[0] + velocity[0]
+        if x > self.grid_size:
+            x = 1
+        elif x < 1:
+            x = self.grid_size
+        y = self.head[1] + velocity[1]
+        if y > self.grid_size:
+            y = 1
+        elif y < 1:
+            y = self.grid_size
+
+        return (x, y)
 
     def draw_score(self):
         # Set background to red
@@ -205,26 +237,13 @@ class Snake:
         pygame.display.flip()
 
     def update(self):
-        # Get the updated the position of the head of the snake given the velocity
-        # If you move off the edge of the screen you will wrap back around to the other side
-        x = self.body[0][0] + self.velocity[0]
-        if x > self.grid_size:
-            x = 1
-        elif x < 1:
-            x = self.grid_size
-        y = self.body[0][1] + self.velocity[1]
-        if y > self.grid_size:
-            y = 1
-        elif y < 1:
-            y = self.grid_size
-
-        first_block = (x, y)
+        future_head = self.future_head(self.velocity)
 
         # Insert the new position of the head of the snake
-        self.body.insert(0, first_block)
+        self.body.insert(0, future_head)
 
         # Check to see if we have just eaten the food - if we have we dont remove the last block of the snake so it grows
-        if first_block == self.food:
+        if future_head == self.food:
             # Set a new position for the food
             self.food = self.generate_food_position()
         else:
@@ -235,11 +254,41 @@ class Snake:
             self.draw_block(removed_block, self.bg_color)
 
         # Check for collisions - the first block has already been added - so dont check that part of the body
-        if first_block in self.body[1:]:
+        if future_head in self.body[1:]:
             self.in_game = False
 
         # Display the updates to our snake
         self.display()
+
+    def calculate_ai_move(self):
+        current_velocity = self.velocity
+        directions = [
+            "LEFT",
+            "RIGHT",
+            "UP",
+            "DOWN",
+        ]
+        best_velocity = current_velocity
+        best_score = None
+
+        for direction in directions:
+            check_velocity = getattr(self, direction)
+            if self.can_change_velocity(check_velocity):
+                future_head = self.future_head(check_velocity)
+                if future_head not in self.body:
+                    score = self.distance_between(future_head, self.food)
+                    if best_score==None or score < best_score:
+                        print(direction, score)
+                        best_velocity = check_velocity
+                        best_score = score
+        # TODO: need to add in a score for how much of the grid can be accessed if this move is made
+        # make the move that keeps the most future moves to expand the life of the snake the most
+
+        self.change_velocity(best_velocity)
+        print("-")
+
+    def distance_between(self, point1, point2):
+        return math.dist(point1, point2)
 
 
 # Init the Snake object and run the game
