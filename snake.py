@@ -1,4 +1,5 @@
-import pygame, random
+import pygame
+import random
 
 
 class Snake:
@@ -112,7 +113,7 @@ class Snake:
             self.in_game = not self.in_game
 
     def generate_food_position(self):
-        # Set the food to be within the snake so we run the while loop at least once
+        # Set the food to be within the snake so we run the loop at least once
         food = self.body[0]
         while food in self.body:
             # Generate random position for the food on the grid
