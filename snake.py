@@ -1,5 +1,6 @@
 import pygame, random
 
+
 class Snake:
 
     # Size of the each block in pixels
@@ -45,7 +46,9 @@ class Snake:
     def __init__(self):
         # Set defaults - with random starting grid and direction of velocity
         self.screen = None
-        self.body = [(random.randint(1, self.grid_size), random.randint(1, self.grid_size))]
+        self.body = [
+            (random.randint(1, self.grid_size), random.randint(1, self.grid_size))
+        ]
         self.food = self.generate_food_position()
         self.velocity = random.choice(list(self.KEY_PRESSES.values()))
 
@@ -113,7 +116,10 @@ class Snake:
         food = self.body[0]
         while food in self.body:
             # Generate random position for the food on the grid
-            food = (random.randint(1, self.grid_size), random.randint(1, self.grid_size))
+            food = (
+                random.randint(1, self.grid_size),
+                random.randint(1, self.grid_size),
+            )
 
         return food
 
@@ -123,10 +129,12 @@ class Snake:
             return True
 
         # You cant go back on yourself if you are longer than 1 block
-        if (self.velocity == self.LEFT and velocity == self.RIGHT) or \
-        (self.velocity == self.RIGHT and velocity == self.LEFT) or \
-        (self.velocity == self.UP and velocity == self.DOWN) or \
-        (self.velocity == self.DOWN and velocity == self.UP):
+        if (
+            (self.velocity == self.LEFT and velocity == self.RIGHT)
+            or (self.velocity == self.RIGHT and velocity == self.LEFT)
+            or (self.velocity == self.UP and velocity == self.DOWN)
+            or (self.velocity == self.DOWN and velocity == self.UP)
+        ):
             return False
 
         return True
@@ -151,7 +159,11 @@ class Snake:
         position = self.get_block_position(block)
 
         # Draw the square block
-        pygame.draw.rect(self.screen, color, pygame.Rect(position, (self.block_size, self.block_size)))
+        pygame.draw.rect(
+            self.screen,
+            color,
+            pygame.Rect(position, (self.block_size, self.block_size)),
+        )
 
     def draw_snake(self):
         # Loop through each block in the snake body and draw it
@@ -171,7 +183,7 @@ class Snake:
         self.draw_food()
 
         # Show the users score over the top
-        font = pygame.font.Font('freesansbold.ttf', 120)
+        font = pygame.font.Font("freesansbold.ttf", 120)
         text = font.render(str(len(self.body)), True, self.bg_color)
         textRect = text.get_rect()
         textRect.center = (self.screen_width // 2, self.screen_height // 2)
@@ -227,6 +239,7 @@ class Snake:
 
         # Display the updates to our snake
         self.display()
+
 
 # Init the Snake object and run the game
 snake = Snake()
