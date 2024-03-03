@@ -32,6 +32,11 @@ class Snake:
         pygame.K_d: RIGHT,
         pygame.K_w: UP,
         pygame.K_s: DOWN,
+        # vim bindings
+        pygame.K_h: LEFT,
+        pygame.K_j: DOWN,
+        pygame.K_k: UP,
+        pygame.K_l: RIGHT,
     }
 
     GAME_SPEED = {
