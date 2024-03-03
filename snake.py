@@ -163,6 +163,7 @@ class Snake:
         # (5, 2) is (120, 30)
         x = (block[0] - 1) * self.block_size
         y = (block[1] - 1) * self.block_size
+
         return (x, y)
 
     def draw_block(self, block, color):
@@ -276,11 +277,14 @@ class Snake:
             if self.can_change_velocity(check_velocity):
                 future_head = self.future_head(check_velocity)
                 if future_head not in self.body:
-                    score = self.distance_between(future_head, self.food)
-                    if best_score==None or score < best_score:
-                        print(direction, score)
-                        best_velocity = check_velocity
-                        best_score = score
+                    access_score = self.calculate_access_score(future_head, self.food)
+                    # only attempt a move if it allows for 50% access to the grid
+                    if access_score > 50:
+                        score = self.distance_between(future_head, self.food)
+                        if best_score==None or score < best_score:
+                            print(direction, score)
+                            best_velocity = check_velocity
+                            best_score = score
         # TODO: need to add in a score for how much of the grid can be accessed if this move is made
         # make the move that keeps the most future moves to expand the life of the snake the most
 
@@ -288,7 +292,83 @@ class Snake:
         print("-")
 
     def distance_between(self, point1, point2):
+        # TODO: doesnt take into consideration that the screen loops around
         return math.dist(point1, point2)
+
+    def calculate_access_score(self, head, food):
+        grid = self.reachable_points(head)
+        accessible = 0
+        inaccessible = 0
+        can_get_food = False
+
+        if grid[food[0]-1][food[1]-1] == 2:
+            can_get_food = True
+
+        for x in range(self.grid_size):
+            for y in range(self.grid_size):
+                if grid[x][y] == 0:
+                    inaccessible += 1
+                elif grid[x][y] == 2:
+                    accessible += 1
+
+        grid_size = self.grid_size * self.grid_size
+        snake_size = len(self.body)
+        open_grid_size = grid_size - snake_size
+        accessible_percentage = 0
+        inaccessible_percentage = 0
+        if accessible:
+            accessible_percentage = (accessible/open_grid_size)*100
+        if inaccessible:
+            inaccessible_percentage = (inaccessible/open_grid_size)*100
+
+        print(can_get_food, grid_size, snake_size, open_grid_size, f"{accessible} ({accessible_percentage}%)", f"{inaccessible} ({inaccessible_percentage}%)")
+
+        return accessible_percentage
+
+
+    def reachable_points(self, head):
+        grid = [[0 for x in range(self.grid_size)] for i in range(self.grid_size)]
+
+        # mark in points blocked by the snakes body
+        for point in self.body:
+            grid[point[0]-1][point[1]-1] = 1
+
+        # work out any points that can be accessed
+        grid = self.check_reachable_point(grid, head)
+
+        return grid
+
+    def add_points(self, point1, point2):
+        return (
+            point1[0] + point2[0],
+            point1[1] + point2[1],
+        )
+
+    def check_reachable_point(self, grid, head):
+        # the points to check
+        points = [
+            (-1, 0),
+            (0, -1), (0, 1),
+            (1, 0),
+        ]
+
+        to_check = []
+
+        for point in points:
+            new_head = self.add_points(head, point)
+
+            # TODO: doesnt account for wrapping screen
+            if new_head[0] < 0 or new_head[1] < 0 or new_head[0] > self.grid_size or new_head[1] > self.grid_size:
+                break
+
+            if grid[new_head[0]-1][new_head[1]-1] == 0:
+                grid[new_head[0]-1][new_head[1]-1] = 2
+                to_check.append(new_head)
+
+        for check in to_check:
+            grid = self.check_reachable_point(grid, check)
+
+        return grid
 
 
 # Init the Snake object and run the game
