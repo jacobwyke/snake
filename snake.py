@@ -277,16 +277,11 @@ class Snake:
             if self.can_change_velocity(check_velocity):
                 future_head = self.future_head(check_velocity)
                 if future_head not in self.body:
-                    access_score = self.calculate_access_score(future_head, self.food)
-                    # only attempt a move if it allows for 50% access to the grid
-                    if access_score > 50:
-                        score = self.distance_between(future_head, self.food)
-                        if best_score==None or score < best_score:
-                            print(direction, score)
-                            best_velocity = check_velocity
-                            best_score = score
-        # TODO: need to add in a score for how much of the grid can be accessed if this move is made
-        # make the move that keeps the most future moves to expand the life of the snake the most
+                    score = self.calculate_move_score(future_head, self.food)
+                    if best_score==None or score > best_score:
+                        print(direction, score)
+                        best_velocity = check_velocity
+                        best_score = score
 
         self.change_velocity(best_velocity)
         print("-")
@@ -295,7 +290,7 @@ class Snake:
         # TODO: doesnt take into consideration that the screen loops around
         return math.dist(point1, point2)
 
-    def calculate_access_score(self, head, food):
+    def calculate_move_score(self, head, food):
         grid = self.reachable_points(head)
         accessible = 0
         inaccessible = 0
@@ -321,9 +316,14 @@ class Snake:
         if inaccessible:
             inaccessible_percentage = (inaccessible/open_grid_size)*100
 
-        print(can_get_food, grid_size, snake_size, open_grid_size, f"{accessible} ({accessible_percentage}%)", f"{inaccessible} ({inaccessible_percentage}%)")
+        distance_score = self.distance_between(head, food)
 
-        return accessible_percentage
+        # Work out a score for this move
+        score = accessible_percentage + (self.grid_size-distance_score) + (5 if can_get_food else 0)
+
+        print(score,can_get_food, grid_size, snake_size, open_grid_size, f"{accessible} ({accessible_percentage}%)", f"{inaccessible} ({inaccessible_percentage}%)")
+
+        return score
 
 
     def reachable_points(self, head):
