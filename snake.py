@@ -329,8 +329,24 @@ class Snake:
         return best_velocity
 
     def distance_between(self, point1, point2):
-        # TODO: doesnt take into consideration that the screen loops around
-        return math.dist(point1, point2)
+        # These maps allow us to expand the grid to see if its
+        # closer to go off the edge to reach the point
+        grid_maps = [
+            (-self.grid_size, 0),
+            (0, -self.grid_size), (0, self.grid_size),
+            (self.grid_size, 0),
+        ]
+
+        # The distance if you don't go off the edges
+        distance = math.dist(point1, point2)
+
+        # Work out if its close to go off the edge of the screen and wrap around
+        for grid_map in grid_maps:
+            grid_distance = math.dist(point1, self.add_points(point2, grid_map))
+            if grid_distance < distance:
+                distance = grid_distance
+
+        return distance
 
     def calculate_move_score(self, head, food):
         grid = self.reachable_points(head)
