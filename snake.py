@@ -22,6 +22,13 @@ class Snake:
     UP = (0, -1)
     DOWN = (0, 1)
 
+    DIRECTIONS = [
+        "LEFT",
+        "RIGHT",
+        "UP",
+        "DOWN",
+    ]
+
     # The different key presses and the velocity changes
     KEY_PRESSES = {
         pygame.K_LEFT: LEFT,
@@ -39,6 +46,12 @@ class Snake:
         pygame.K_l: RIGHT,
     }
 
+    AI_MODES = {
+        pygame.K_r: "random",
+        pygame.K_p: "path",
+        pygame.K_t: "survival",
+    }
+
     GAME_SPEED = {
         pygame.K_1: 5,
         pygame.K_2: 10,
@@ -48,7 +61,7 @@ class Snake:
         pygame.K_6: 30,
         pygame.K_7: 35,
         pygame.K_8: 40,
-        pygame.K_9: 45,
+        pygame.K_9: 500,
     }
 
     def __init__(self):
@@ -68,6 +81,7 @@ class Snake:
         self.is_running = True
         self.in_game = True
         self.ai = False
+        self.ai_mode = "random"
 
         # The game speed based on the clock speed
         self.game_speed = 15
@@ -120,6 +134,9 @@ class Snake:
         elif keypress in self.GAME_SPEED:
             # Set the game speed if 1-9 is pressed
             self.game_speed = self.GAME_SPEED[keypress]
+        elif keypress in self.AI_MODES:
+            # Set different AI modes
+            self.ai_mode = self.AI_MODES[keypress]
         elif keypress == pygame.K_SPACE:
             # Pause/resume the game
             self.in_game = not self.in_game
@@ -267,17 +284,36 @@ class Snake:
         self.display()
 
     def calculate_ai_move(self):
+        # Make the move based on whatever AI model is selected
+        if self.ai_mode == "random":
+            velocity = self.calculate_ai_random_move()
+        elif self.ai_mode == "path":
+            velocity = self.calculate_ai_path_move()
+        elif self.ai_mode == "survival":
+            velocity = self.calculate_ai_survival_move()
+
+        self.change_velocity(velocity)
+
+    def calculate_ai_random_move(self):
+        # Total random move each time
+        return getattr(self, random.choice(self.DIRECTIONS))
+
+    def calculate_ai_path_move(self):
+        # Follow a pre-defined path for the snake to follow
+        velocity = self.DOWN if self.head[0] % 2 else self.UP
+        if self.head[1] == 1 and velocity == self.UP:
+            velocity = self.RIGHT
+        elif self.head[1] == self.grid_size and velocity == self.DOWN:
+            velocity = self.RIGHT
+
+        return velocity
+
+    def calculate_ai_survival_move(self):
         current_velocity = self.velocity
-        directions = [
-            "LEFT",
-            "RIGHT",
-            "UP",
-            "DOWN",
-        ]
         best_velocity = current_velocity
         best_score = None
 
-        for direction in directions:
+        for direction in self.DIRECTIONS:
             check_velocity = getattr(self, direction)
             if self.can_change_velocity(check_velocity):
                 future_head = self.future_head(check_velocity)
@@ -288,8 +324,9 @@ class Snake:
                         best_velocity = check_velocity
                         best_score = score
 
-        self.change_velocity(best_velocity)
         print("-")
+
+        return best_velocity
 
     def distance_between(self, point1, point2):
         # TODO: doesnt take into consideration that the screen loops around
