@@ -61,7 +61,7 @@ class Snake:
         pygame.K_6: 30,
         pygame.K_7: 35,
         pygame.K_8: 40,
-        pygame.K_9: 500,
+        pygame.K_9: 1000,
     }
 
     def __init__(self):
@@ -81,7 +81,7 @@ class Snake:
         self.is_running = True
         self.in_game = True
         self.ai = False
-        self.ai_mode = "random"
+        self.ai_mode = "survival"
 
         # The game speed based on the clock speed
         self.game_speed = 15
