@@ -4,12 +4,11 @@ import math
 
 
 class Snake:
-
     # Size of the each block in pixels
     block_size = 20
 
-    # Size of the grid to use will be 30 x 30 etc
-    grid_size = 30
+    # Size of the info bar
+    info_bar = 50
 
     bg_color = pygame.Color("black")
     snake_head_color = pygame.Color("blue")
@@ -52,99 +51,177 @@ class Snake:
         pygame.K_t: "survival",
     }
 
-    GAME_SPEED = {
-        pygame.K_1: 5,
-        pygame.K_2: 10,
-        pygame.K_3: 15,
-        pygame.K_4: 20,
-        pygame.K_5: 25,
-        pygame.K_6: 30,
-        pygame.K_7: 35,
-        pygame.K_8: 40,
-        pygame.K_9: 1000,
-    }
+    def __init__(self, grid_size=30):
+        pygame.init()
+        self.clock = pygame.time.Clock()
 
-    def __init__(self):
-        # Set defaults - with random starting grid and direction of velocity
+        self.grid_size = grid_size
+
+        # Set the initial state for a game
+        self.reset()
+
+    def reset(self):
         self.screen = None
-        self.body = [
-            (random.randint(1, self.grid_size), random.randint(1, self.grid_size))
-        ]
-        self.food = self.generate_food_position()
-        self.velocity = random.choice(list(self.KEY_PRESSES.values()))
 
         # Work out the size of the screen based on the block and grid size
         self.screen_width = self.block_size * self.grid_size
-        self.screen_height = self.block_size * self.grid_size
+        self.screen_height = self.block_size * self.grid_size + self.info_bar
+
+        # Create a random head of the snake somewhere
+        self.body = [
+            (random.randint(1, self.grid_size), random.randint(1, self.grid_size))
+        ]
+        self.food = self._generate_food_position()
+        self.velocity = random.choice(list(self.KEY_PRESSES.values()))
 
         # The different states of the app
         self.is_running = True
-        self.in_game = True
+        self.is_alive = True
+        self.is_paused = False
         self.ai = False
         self.ai_mode = "survival"
+        self.frame = 0
 
         # The game speed based on the clock speed
         self.game_speed = 15
 
-        # Run the game
-        self.run()
+        # Show the window
+        self._show_window()
 
-    def run(self):
-        # Init pygame and show the window and first view of the snake/food
-        pygame.init()
-        self.show_window()
-        self.display()
-
-        # Get a clock so we can measure the speed of the CPU
-        clock = pygame.time.Clock()
-
+    def play(self):
         while self.is_running:
-            # Set the clock speed for how fast he game runs
-            clock.tick(self.game_speed)
-
-            # Only update if we are in game mode
-            if self.in_game:
-                self.update()
-
-                # If in AI mode, work out any moves needed
-                if self.ai:
-                    self.calculate_ai_move()
-
             # Handle key presses and quiting the game
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
-                    self.key_press(event.key)
+                    self._key_press(event.key)
                 elif event.type == pygame.QUIT:
                     self.is_running = False
 
-    def show_window(self):
-        # Set window title bar
-        pygame.display.set_caption("Snake")
+            # Only update if we are in game mode
+            if self.is_alive and not self.is_paused:
+                # If in AI mode, work out any moves needed
+                if self.ai:
+                    self.change_velocity(self.calculate_ai_move())
 
-        # Set the size of the window
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+                self.play_frame(self.velocity)
 
-        # Fill screen with black
-        self.screen.fill(self.bg_color)
 
-    def key_press(self, keypress):
+    def play_frame(self, velocity):
+        self.velocity = velocity
+
+        # Set the new frame this move is for
+        self.frame += 1
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.is_running = False
+
+        # Get the new head of the snake
+        future_head = self.future_head(velocity)
+
+        # Insert the new position of the head of the snake
+        self.body.insert(0, future_head)
+
+        # Check to see if we have just eaten the food - if we have we dont remove the last block of the snake so it grows
+        if future_head == self.food:
+            # Set a new position for the food
+            self.food = self._generate_food_position()
+        else:
+            # Remove the last block of the body to appear as if the whole snake moved
+            removed_block = self.body.pop()
+
+            # Draw over the position of the removed block to make it match the background colour
+            # this means we dont have to already draw the whole screen again
+            self._draw_block(removed_block, self.bg_color)
+
+        # Check for collisions - the first block has already been added - so dont check that part of the body
+        if self.is_collision(future_head):
+            self.is_alive = False
+
+        # Set the clock speed for how fast he game runs
+        self.clock.tick(self.game_speed)
+
+        # Display the updates to the UI
+        self.display_frame()
+
+    def is_collision(self, point):
+        return point in self.body[1:]
+
+    def pause(self):
+        self.is_paused = not self.is_paused
+        self.display_frame()
+
+    @property
+    def head(self):
+        return self.body[0]
+
+    def score(self):
+        return len(self.body)-1
+
+    def _key_press(self, keypress):
         if keypress in self.KEY_PRESSES:
             # If keypress is valid (up/down/left/right) - change the velocity
             self.change_velocity(self.KEY_PRESSES[keypress])
-        elif keypress in self.GAME_SPEED:
-            # Set the game speed if 1-9 is pressed
-            self.game_speed = self.GAME_SPEED[keypress]
+        elif keypress == pygame.K_PERIOD:
+            # increase the speed
+            self.game_speed += 5
+        elif keypress == pygame.K_COMMA:
+            # decrease the speed
+            self.game_speed -= 5
+            if self.game_speed < 5:
+                self.game_speed = 5
+        elif keypress == pygame.K_0:
+            # set speed to 1
+            self.game_speed = 15
+        elif keypress == pygame.K_9:
+            # set speed to 9
+            self.game_speed = 1000
         elif keypress in self.AI_MODES:
             # Set different AI modes
             self.ai_mode = self.AI_MODES[keypress]
         elif keypress == pygame.K_SPACE:
-            # Pause/resume the game
-            self.in_game = not self.in_game
+            if self.is_alive:
+                # Pause/resume the game
+                self.pause()
+            else:
+                # Reset the game if you are dead
+                self.reset()
         elif keypress == pygame.K_c:
             # toggle ai cheat mode
             self.ai = not self.ai
 
-    def generate_food_position(self):
+    def _can_change_velocity(self, new_velocity):
+        # You can change any direction if you are only 1 block in size
+        if self.score() == 0:
+            return True
+
+        # If current velocity plus new velocity is zero then you are trying to go back on yourself
+        if self.add_points(self.velocity, new_velocity) == (0, 0):
+            return False
+
+        return True
+
+    def change_velocity(self, velocity):
+        # Check to make sure the velocity change is valid
+        if self._can_change_velocity(velocity):
+            self.velocity = velocity
+
+    def future_head(self, velocity):
+        # Get the next position of the head of the snake given the velocity
+        # If you move off the edge of the screen you will wrap back around to the other side
+        calculated_head = self.add_points(self.head, velocity)
+        new_head = [None, None]
+        for i, value in enumerate(calculated_head):
+            if value > self.grid_size:
+                new_head[i] = 1
+            elif value < 1:
+                new_head[i] = self.grid_size
+            else:
+                new_head[i] = value
+
+        return tuple(new_head)
+
+    def _generate_food_position(self):
         # Set the food to be within the snake so we run the loop at least once
         food = self.body[0]
         while food in self.body:
@@ -156,41 +233,50 @@ class Snake:
 
         return food
 
-    def can_change_velocity(self, velocity):
-        # You can change any direction if you are only 1 block in size
-        if len(self.body) == 1:
-            return True
+    def _show_window(self):
+        # Set window title bar
+        pygame.display.set_caption("Snake")
 
-        # You cant go back on yourself if you are longer than 1 block
-        if (
-            (self.velocity == self.LEFT and velocity == self.RIGHT)
-            or (self.velocity == self.RIGHT and velocity == self.LEFT)
-            or (self.velocity == self.UP and velocity == self.DOWN)
-            or (self.velocity == self.DOWN and velocity == self.UP)
-        ):
-            return False
+        # Set the size of the window
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
 
-        return True
+        # Show the starting screen to set a known state
+        self._start_screen()
 
-    def change_velocity(self, velocity):
-        # Check to make sure the velocity change is valid
-        if self.can_change_velocity(velocity):
-            self.velocity = velocity
+        # Display the current frame in the window
+        self.display_frame()
 
-    def get_block_position(self, block):
+    def _start_screen(self):
+        # Fill screen with black
+        self.screen.fill(self.bg_color)
+
+    def _end_screen(self):
+        # Set background to red
+        self.screen.fill(pygame.Color("red"))
+
+        # Overlay the snake and food
+        self._display_screen_components()
+
+        # Show the users score over the top
+        font = pygame.font.Font("freesansbold.ttf", 120)
+        text = font.render(str(self.score()), True, self.bg_color)
+        textRect = text.get_rect()
+        textRect.center = (self.screen_width // 2, self.screen_height // 2)
+        self.screen.blit(text, textRect)
+
+    def _get_block_position(self, block):
         # This is for the top left of the block on our grid
         # If block size is 30px:
         # (1,1) is (0, 0)
-        # (2, 2) is (30, 30)
         # (5, 2) is (120, 30)
         x = (block[0] - 1) * self.block_size
         y = (block[1] - 1) * self.block_size
 
         return (x, y)
 
-    def draw_block(self, block, color):
+    def _draw_block(self, block, color):
         # Get the top left position of the block to draw
-        position = self.get_block_position(block)
+        position = self._get_block_position(block)
 
         # Draw the square block
         pygame.draw.rect(
@@ -199,89 +285,60 @@ class Snake:
             pygame.Rect(position, (self.block_size, self.block_size)),
         )
 
-    def draw_snake(self):
+    def _draw_snake(self):
         # Loop through each block in the snake body and draw it
         color = self.snake_head_color
         for block in self.body:
-            self.draw_block(block, color)
+            self._draw_block(block, color)
             color = self.snake_color
 
-    def draw_food(self):
+    def _draw_food(self):
         # Draw the food as a single block
-        self.draw_block(self.food, self.food_color)
+        self._draw_block(self.food, self.food_color)
 
-    @property
-    def head(self):
-        return self.body[0]
+    def _draw_info_bar(self):
+        pygame.draw.rect(
+            self.screen,
+            pygame.Color("grey"),
+            pygame.Rect((0, self.screen_height-self.info_bar), (self.screen_width, self.info_bar)),
+        )
 
-    def future_head(self, velocity):
-        # Get the next position of the head of the snake given the velocity
-        # If you move off the edge of the screen you will wrap back around to the other side
-        x = self.head[0] + velocity[0]
-        if x > self.grid_size:
-            x = 1
-        elif x < 1:
-            x = self.grid_size
-        y = self.head[1] + velocity[1]
-        if y > self.grid_size:
-            y = 1
-        elif y < 1:
-            y = self.grid_size
-
-        return (x, y)
-
-    def draw_score(self):
-        # Set background to red
-        self.screen.fill(pygame.Color("red"))
-
-        # Overlay the snake and food
-        self.draw_snake()
-        self.draw_food()
-
-        # Show the users score over the top
-        font = pygame.font.Font("freesansbold.ttf", 120)
-        text = font.render(str(len(self.body)), True, self.bg_color)
+        font = pygame.font.Font("freesansbold.ttf", 20)
+        text = font.render("Score: " + str(self.score()), True, pygame.Color("white"))
         textRect = text.get_rect()
-        textRect.center = (self.screen_width // 2, self.screen_height // 2)
+        textRect.center = (70, self.screen_height - (self.info_bar / 2))
         self.screen.blit(text, textRect)
 
-    def display(self):
+        text = font.render("Speed: " + str(self.game_speed), True, pygame.Color("white"))
+        textRect = text.get_rect()
+        textRect.center = (self.screen_width - 70, self.screen_height - (self.info_bar / 2))
+        self.screen.blit(text, textRect)
+
+        if self.is_paused:
+            text = font.render("Paused", True, pygame.Color("white"))
+            textRect = text.get_rect()
+            textRect.center = (self.screen_width/2, self.screen_height - (self.info_bar / 2))
+            self.screen.blit(text, textRect)
+
+    def _display_screen_components(self):
         # Draw the whole snake
-        self.draw_snake()
+        self._draw_snake()
 
         # Draw the food
-        self.draw_food()
+        self._draw_food()
 
-        # If game has ended show draw the score
-        if not self.in_game:
-            self.draw_score()
+        # Draw the info bar
+        self._draw_info_bar()
+
+    def display_frame(self):
+        self._display_screen_components()
+
+        # If game has ended show end screen
+        if not self.is_alive:
+            self._end_screen()
 
         # Flip the display to show the new content we just drew
         pygame.display.flip()
-
-    def update(self):
-        future_head = self.future_head(self.velocity)
-
-        # Insert the new position of the head of the snake
-        self.body.insert(0, future_head)
-
-        # Check to see if we have just eaten the food - if we have we dont remove the last block of the snake so it grows
-        if future_head == self.food:
-            # Set a new position for the food
-            self.food = self.generate_food_position()
-        else:
-            # Remove the last block of the body to appear as if the whole snake moved
-            removed_block = self.body.pop()
-
-            # Draw over the position of the removed block to make it match the background colour
-            self.draw_block(removed_block, self.bg_color)
-
-        # Check for collisions - the first block has already been added - so dont check that part of the body
-        if future_head in self.body[1:]:
-            self.in_game = False
-
-        # Display the updates to our snake
-        self.display()
 
     def calculate_ai_move(self):
         # Make the move based on whatever AI model is selected
@@ -292,7 +349,7 @@ class Snake:
         elif self.ai_mode == "survival":
             velocity = self.calculate_ai_survival_move()
 
-        self.change_velocity(velocity)
+        return velocity
 
     def calculate_ai_random_move(self):
         # Total random move each time
@@ -315,7 +372,7 @@ class Snake:
 
         for direction in self.DIRECTIONS:
             check_velocity = getattr(self, direction)
-            if self.can_change_velocity(check_velocity):
+            if self._can_change_velocity(check_velocity):
                 future_head = self.future_head(check_velocity)
                 if future_head not in self.body:
                     score = self.calculate_move_score(future_head, self.food)
@@ -365,7 +422,7 @@ class Snake:
                     accessible += 1
 
         grid_size = self.grid_size * self.grid_size
-        snake_size = len(self.body)
+        snake_size = self.score()
         open_grid_size = grid_size - snake_size
         accessible_percentage = 0
         inaccessible_percentage = 0
@@ -429,5 +486,7 @@ class Snake:
         return grid
 
 
-# Init the Snake object and run the game
-snake = Snake()
+if __name__ == '__main__':
+    # Init the Snake object and run the game
+    snake = Snake()
+    snake.play()

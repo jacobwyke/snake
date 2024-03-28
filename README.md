@@ -18,7 +18,7 @@ python snake.py
 ## Game settings
 - Move with WASD or 🔼◀️🔽▶️
 - Pause the game with the spacebar
-- Adjust the game speed with 1-9
+- Adjust the game speed with ',' and '.'
 - Let the game play itself in cheat mode with `c`
 
 ## AI Options
